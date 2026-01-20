@@ -4,8 +4,13 @@ This is the main entry point for the interactive chat interface.
 """
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Optional
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 import chainlit as cl
 
@@ -81,9 +86,14 @@ Ready to begin? Upload your first document! 📄
 @cl.on_message
 async def main(message: cl.Message):
     """Handle incoming user messages."""
-    global qa_chain
+    global qa_chain, vector_store_manager
 
     logger.info(f"Received message: {message.content[:50]}...")
+
+    # Check for file attachments
+    if message.elements:
+        await handle_file_upload(message.elements)
+        return
 
     # Check if QA chain is available
     if qa_chain is None:
@@ -113,7 +123,6 @@ async def main(message: cl.Message):
         ).send()
 
 
-@cl.on_file_upload(accept=["application/pdf", "text/plain"], max_files=5)
 async def handle_file_upload(files: list):
     """Handle file uploads."""
     global vector_store_manager, qa_chain
@@ -137,8 +146,19 @@ async def handle_file_upload(files: list):
         for file in files:
             # Save file to upload directory
             file_path = upload_dir / file.name
+
+            # Read file content based on type
+            if hasattr(file, 'content'):
+                content = file.content
+            elif hasattr(file, 'path'):
+                with open(file.path, 'rb') as f:
+                    content = f.read()
+            else:
+                logger.error(f"Unknown file type: {type(file)}")
+                continue
+
             with open(file_path, "wb") as f:
-                f.write(file.content)
+                f.write(content)
 
             logger.info(f"Processing file: {file.name}")
 
