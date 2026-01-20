@@ -83,7 +83,10 @@ chainlit run app/chainlit_app.py --port 8080
 ### Testing
 
 ```bash
-# Run all tests
+# Quick test of Phase 1 implementation (without UI)
+python test_phase1.py
+
+# Run all tests (when test suite is developed)
 pytest
 
 # Run specific test file
@@ -95,6 +98,8 @@ pytest --cov=src tests/
 # Run specific test
 pytest tests/test_loaders.py::test_pdf_loader -v
 ```
+
+**Note**: The formal pytest test suite is not yet implemented. Currently, use `test_phase1.py` for verification.
 
 ### Development Commands
 
@@ -322,12 +327,26 @@ EduDicAI/
 
 ## Project State & Implementation Notes
 
-**Current Development Phase**: The project is currently in **Phase 0 (Setup)**. Most source files contain only `__init__.py` stubs. When implementing functionality:
+**Current Development Phase**: The project is currently in **Phase 1 Complete**. Basic RAG functionality is fully implemented and working. When implementing new functionality:
 
 1. **Always check PROGRESS.md first** to understand current phase and next steps
 2. **Follow the incremental approach**: Implement features according to phase order
 3. **Update PROGRESS.md** after completing each step (change [⬜] to [✅])
-4. **Create implementation files** as needed (most modules are empty stubs currently)
+4. **Test thoroughly**: Use existing test scripts as reference for new features
+
+**Implemented Components (Phase 1)**:
+- Document loaders (PDF, text) in `src/document_processing/loaders.py`
+- Text chunking with RecursiveCharacterTextSplitter in `src/document_processing/splitters.py`
+- ChromaDB vector store operations in `src/retrieval/vector_store.py`
+- OpenAI embeddings in `src/retrieval/embeddings.py`
+- Q&A chain with LCEL and streaming in `src/chains/qa_chain.py`
+- Chainlit UI with file upload and async chat in `app/chainlit_app.py`
+
+**Not Yet Implemented (Future Phases)**:
+- Metadata extraction (`src/document_processing/metadata.py` - stub only)
+- Query routing (`src/chains/routing_chain.py` - stub only)
+- Agent tools and reasoning (`src/agents/*` - stubs only)
+- Conversation memory (`src/memory/*` - stub only)
 
 ### Windows-Specific Notes
 
@@ -335,6 +354,23 @@ This project is developed on Windows:
 - Use `venv\Scripts\activate` (not `source venv/bin/activate`)
 - Path separators in code should use `pathlib.Path` for cross-platform compatibility
 - ChromaDB persists to `./data/vector_db` (uses forward slashes internally)
+- Console encoding: Test scripts set UTF-8 encoding for proper character display
+
+### Known Implementation Details
+
+**Chainlit File Upload**:
+- File objects have either `.content` or `.path` attributes depending on Chainlit version
+- The app handles both cases for compatibility
+
+**Vector Store Persistence**:
+- ChromaDB automatically persists to `data/vector_db/` directory
+- Collection name defaults to "edudocai_collection"
+- Use unique collection names for testing to avoid conflicts
+
+**Streaming Support**:
+- Q&A chain supports streaming via `astream()` method
+- Chainlit UI uses `msg.stream_token()` for real-time response display
+- Non-streaming fallback via `invoke()` method for testing
 
 ## Additional Notes
 

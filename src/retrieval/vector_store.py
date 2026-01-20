@@ -4,7 +4,7 @@ This module provides functionality for storing and retrieving document embedding
 """
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
@@ -152,12 +152,14 @@ class VectorStoreManager:
         self,
         query: str,
         k: int | None = None,
+        filter: Optional[Dict[str, str]] = None,
     ) -> List[Document]:
         """Search for similar documents using semantic similarity.
 
         Args:
             query: Query text
             k: Number of results to return (default: from settings)
+            filter: Optional metadata filter (e.g., {"document_type": "timetable"})
 
         Returns:
             List[Document]: List of similar documents
@@ -166,6 +168,11 @@ class VectorStoreManager:
             >>> manager = VectorStoreManager()
             >>> manager.load_vector_store()
             >>> results = manager.similarity_search("What is the schedule?", k=4)
+            >>> # With metadata filter
+            >>> results = manager.similarity_search(
+            ...     "What is the schedule?",
+            ...     filter={"document_type": "timetable", "grade_levels": "O-Level"}
+            ... )
         """
         if self.vector_store is None:
             logger.error("No vector store loaded")
@@ -175,7 +182,12 @@ class VectorStoreManager:
 
         try:
             logger.info(f"Performing similarity search for: {query[:50]}...")
-            results = self.vector_store.similarity_search(query, k=k)
+            if filter:
+                logger.info(f"Applying metadata filter: {filter}")
+                results = self.vector_store.similarity_search(query, k=k, filter=filter)
+            else:
+                results = self.vector_store.similarity_search(query, k=k)
+
             logger.info(f"Found {len(results)} similar documents")
             return results
 
@@ -183,11 +195,14 @@ class VectorStoreManager:
             logger.error(f"Error performing similarity search: {e}")
             raise
 
-    def as_retriever(self, k: int | None = None):
+    def as_retriever(
+        self, k: int | None = None, filter: Optional[Dict[str, str]] = None
+    ):
         """Get a retriever interface for the vector store.
 
         Args:
             k: Number of results to return (default: from settings)
+            filter: Optional metadata filter (e.g., {"document_type": "timetable"})
 
         Returns:
             VectorStoreRetriever: Retriever interface
@@ -197,6 +212,11 @@ class VectorStoreManager:
             >>> manager.load_vector_store()
             >>> retriever = manager.as_retriever(k=4)
             >>> # Use retriever in LCEL chain
+            >>> # With metadata filter
+            >>> retriever = manager.as_retriever(
+            ...     k=4,
+            ...     filter={"document_type": "timetable"}
+            ... )
         """
         if self.vector_store is None:
             logger.error("No vector store loaded")
@@ -204,9 +224,12 @@ class VectorStoreManager:
 
         k = k or settings.top_k_results
 
-        return self.vector_store.as_retriever(
-            search_kwargs={"k": k}
-        )
+        search_kwargs = {"k": k}
+        if filter:
+            search_kwargs["filter"] = filter
+            logger.info(f"Creating retriever with metadata filter: {filter}")
+
+        return self.vector_store.as_retriever(search_kwargs=search_kwargs)
 
     def delete_collection(self) -> None:
         """Delete the vector store collection.

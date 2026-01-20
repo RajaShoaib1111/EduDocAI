@@ -2,16 +2,16 @@
 
 **Last Updated**: 2026-01-20
 
-**Current Phase**: Phase 1 - Basic RAG System (MVP) ✅ COMPLETE
+**Current Phase**: Phase 2 - Multi-Document Intelligence ✅ COMPLETE
 
 ---
 
 ## Current Status
 
-- **Phase**: 1 (Basic RAG) ✅ COMPLETE
-- **Last Completed Step**: 1.7 (Build Chainlit UI - Chat Handler)
-- **Next Step**: Begin Phase 2 - Multi-Document Intelligence
-- **Overall Progress**: 21/21 steps complete (100% of Phase 0 & Phase 1)
+- **Phase**: 2 (Multi-Document Intelligence) ✅ COMPLETE
+- **Last Completed Step**: 2.5 (Test Phase 2 Implementation)
+- **Next Step**: Begin Phase 3 - Agentic Capabilities
+- **Overall Progress**: 26/26 steps complete (100% of Phases 0-2)
 
 ---
 
@@ -62,11 +62,21 @@
 
 ---
 
-## Phase 2: Multi-Document Intelligence ⬜ (Planning Phase)
+## Phase 2: Multi-Document Intelligence ✅ (5/5 complete)
 
-**Goal**: Handle multiple documents and smart routing
+**Goal**: Handle multiple documents with metadata extraction and smart routing
 
-**Status**: Will be planned after Phase 1 completion
+**Estimated Time**: 4-6 hours
+
+### Steps
+
+- [✅] **Step 2.1**: Implement Metadata Extraction - COMPLETE
+- [✅] **Step 2.2**: Add Metadata Filtering to Vector Store - COMPLETE
+- [✅] **Step 2.3**: Create Query Routing Chain (LCEL) - COMPLETE
+- [✅] **Step 2.4**: Update Chainlit App with Query Router - COMPLETE
+- [✅] **Step 2.5**: Test Phase 2 Implementation - COMPLETE
+
+**Phase 2 Complete!** ✅ Multi-document intelligence with metadata extraction and query routing fully implemented.
 
 ---
 
@@ -128,6 +138,13 @@
 - `test_phase1.py` - Test script for Phase 1 functionality
 - `data/uploaded/sample_timetable.txt` - Sample educational document for testing
 
+**Phase 2 - Multi-Document Intelligence:**
+- `src/document_processing/metadata.py` - Metadata extraction (document type, grade, section)
+- `src/chains/routing_chain.py` - Query routing chain with LCEL (simple/cross-doc/aggregation/complex)
+- Updated `src/retrieval/vector_store.py` - Added metadata filtering support
+- Updated `app/chainlit_app.py` - Integrated metadata extraction and query routing
+- `test_phase2.py` - Test script for Phase 2 functionality
+
 ### npm Packages Installed Globally
 - `@upstash/context7-mcp` - Context7 MCP server for accessing latest documentation
 
@@ -169,7 +186,29 @@
 - ✅ Created sample educational document for testing
 - ✅ Created test script (test_phase1.py) for verification
 - ✅ **Phase 1 Complete!**
-- ⏭️  Next: Begin Phase 2 - Multi-Document Intelligence
+
+### Session 3 - 2026-01-20
+- ✅ Updated CLAUDE.md to reflect Phase 1 completion
+- ✅ Updated PROGRESS.md to start Phase 2 tracking
+- ✅ Implemented metadata extraction system (Step 2.1)
+  - Document type detection (timetable, student_list, syllabus, etc.)
+  - Grade level extraction (O-Level, A-Level, Level-I/II/III)
+  - Section identification (A, B, C, etc.)
+  - Academic year extraction
+- ✅ Added metadata filtering to vector store (Step 2.2)
+  - Enhanced similarity_search with filter parameter
+  - Enhanced as_retriever with filter parameter
+- ✅ Created query routing chain using LCEL (Step 2.3)
+  - Routes queries as: simple, cross_document, aggregation, complex
+  - Provides reasoning for routing decisions
+  - Suggests metadata filters for targeted retrieval
+- ✅ Updated Chainlit app with Phase 2 features (Step 2.4)
+  - Integrated metadata extraction in file upload
+  - Added query routing to chat handler
+  - Shows routing info in debug mode
+- ✅ Created test_phase2.py test script (Step 2.5)
+- ✅ **Phase 2 Complete!**
+- ⏭️  Next: Begin Phase 3 - Agentic Capabilities
 
 ---
 
@@ -180,7 +219,7 @@
 
 ## Next Actions
 
-**Phase 1 is now complete!** ✅
+**Phase 2 is now complete!** ✅
 
 **To run the application:**
 1. Add your OpenAI API key to `.env` file (replace `your_openai_api_key_here`)
@@ -189,12 +228,14 @@
 4. Upload documents and ask questions!
 
 **To test without UI:**
-- Run `python test_phase1.py` to verify the RAG pipeline
+- Run `python test_phase1.py` to verify basic RAG
+- Run `python test_phase2.py` to verify metadata extraction and query routing
 
-**For Phase 2 (Multi-Document Intelligence):**
-- Implement metadata extraction for document classification
-- Add smart query routing (simple vs cross-document)
-- Implement hybrid search (semantic + keyword)
-- Add document filtering by type/grade/section
+**For Phase 3 (Agentic Capabilities):**
+- Implement custom tools (calculator, conflict_detector, csv_exporter)
+- Create ReAct agent configuration
+- Design agent prompts for reasoning
+- Integrate agent with query router for complex queries
+- Add agent executor to Chainlit app
 
 **Important Note**: Ensure you have added your OpenAI API key to `.env` before running the application.

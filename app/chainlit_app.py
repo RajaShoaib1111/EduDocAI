@@ -15,8 +15,10 @@ sys.path.insert(0, str(project_root))
 import chainlit as cl
 
 from src.chains.qa_chain import QAChain
+from src.chains.routing_chain import QueryRouter, QueryType
 from src.config.settings import settings
 from src.document_processing.loaders import DocumentLoader
+from src.document_processing.metadata import extract_metadata_from_documents
 from src.document_processing.splitters import DocumentSplitter
 from src.retrieval.vector_store import VectorStoreManager
 from src.utils.logging import get_logger
@@ -27,14 +29,18 @@ logger = get_logger(__name__)
 # Global variables
 vector_store_manager: Optional[VectorStoreManager] = None
 qa_chain: Optional[QAChain] = None
+query_router: Optional[QueryRouter] = None
 
 
 @cl.on_chat_start
 async def start():
     """Initialize the chat session."""
-    global vector_store_manager, qa_chain
+    global vector_store_manager, qa_chain, query_router
 
     logger.info("Starting new chat session")
+
+    # Initialize query router
+    query_router = QueryRouter()
 
     # Welcome message
     await cl.Message(
@@ -86,7 +92,7 @@ Ready to begin? Upload your first document! 📄
 @cl.on_message
 async def main(message: cl.Message):
     """Handle incoming user messages."""
-    global qa_chain, vector_store_manager
+    global qa_chain, vector_store_manager, query_router
 
     logger.info(f"Received message: {message.content[:50]}...")
 
@@ -102,12 +108,39 @@ async def main(message: cl.Message):
         ).send()
         return
 
-    # Create a message placeholder for streaming
-    msg = cl.Message(content="")
-    await msg.send()
-
     try:
-        # Stream the answer
+        # Route the query
+        if query_router:
+            route = query_router.route_query(message.content)
+            logger.info(
+                f"Query routed as {route.query_type.value} | "
+                f"Filter: {route.metadata_filter}"
+            )
+
+            # Show routing info in debug mode
+            if settings.debug:
+                await cl.Message(
+                    content=f"🔍 **Query Type:** {route.query_type.value}\n"
+                            f"**Reasoning:** {route.reasoning}\n"
+                            f"**Filter:** {route.metadata_filter or 'None'}",
+                    author="System",
+                ).send()
+
+            # Handle different query types
+            if route.query_type == QueryType.COMPLEX:
+                # For now, show a message that complex queries need agents (Phase 3)
+                await cl.Message(
+                    content="🤖 This query requires complex reasoning with agents, "
+                            "which will be available in Phase 3. "
+                            "For now, I'll try to answer using basic retrieval.",
+                    author="System",
+                ).send()
+
+        # Create a message placeholder for streaming
+        msg = cl.Message(content="")
+        await msg.send()
+
+        # Stream the answer (metadata filtering will be added in future enhancement)
         async for token in qa_chain.astream(message.content):
             await msg.stream_token(token)
 
@@ -168,13 +201,17 @@ async def handle_file_upload(files: list):
             # Load document
             documents = DocumentLoader.load_document(file_path)
 
+            # Extract and enrich metadata
+            documents = extract_metadata_from_documents(documents, filename=file.name)
+            logger.info(f"Extracted metadata for {file.name}")
+
             # Split into chunks
             splitter = DocumentSplitter()
             chunks = splitter.split_documents(documents)
 
             all_chunks.extend(chunks)
 
-            logger.info(f"Split {file.name} into {len(chunks)} chunks")
+            logger.info(f"Split {file.name} into {len(chunks)} chunks with metadata")
 
         # Create or update vector store
         if vector_store_manager is None:
