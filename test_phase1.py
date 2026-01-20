@@ -3,6 +3,14 @@
 This script tests the basic RAG pipeline without the UI.
 """
 
+import sys
+import os
+
+# Fix Windows console encoding
+if sys.platform == 'win32':
+    os.system('chcp 65001 >nul 2>&1')  # Set console to UTF-8
+    sys.stdout.reconfigure(encoding='utf-8')
+
 from src.document_processing.loaders import DocumentLoader
 from src.document_processing.splitters import DocumentSplitter
 from src.retrieval.vector_store import VectorStoreManager
