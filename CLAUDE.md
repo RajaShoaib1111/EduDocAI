@@ -11,12 +11,12 @@ EduDoc AI is a RAG-based educational document assistant built with LangChain. It
 ## Technology Stack
 
 - **Framework**: LangChain (v0.1+) with LCEL (LangChain Expression Language)
-- **LLM**: Anthropic Claude (Sonnet 3.5 or latest) as primary, OpenAI GPT-4 as fallback
+- **LLM**: OpenAI GPT-4o (primary model for generation)
 - **Embeddings**: OpenAI text-embedding-3-small
 - **Vector DB**: ChromaDB (local, embedded)
 - **UI**: Chainlit for interactive chat interface
-- **Document Processing**: PyPDF2, Unstructured, LangChain document loaders
-- **Supporting**: Pydantic, python-dotenv, tiktoken
+- **Document Processing**: pypdf, LangChain document loaders
+- **Supporting**: Pydantic v2, python-dotenv, tiktoken
 
 ## Architecture Overview
 
@@ -39,18 +39,35 @@ The system follows a layered architecture:
 
 ## Development Workflow
 
+### MCP Server Setup
+
+This project uses the `@upstash/context7-mcp` server for accessing latest documentation:
+
+```bash
+# Already installed globally
+npm list -g @upstash/context7-mcp
+
+# This MCP server provides access to up-to-date documentation for:
+# - LangChain, Chainlit, ChromaDB, and other dependencies
+# - Use when you need the latest API references during development
+```
+
 ### Environment Setup
 
 ```bash
 # Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate  # On Windows
 
-# Install dependencies
+# Install production dependencies
 pip install -r requirements.txt
 
+# Install development dependencies
+pip install -r requirements-dev.txt
+
 # Set up environment variables (copy .env.example to .env)
-# Required: ANTHROPIC_API_KEY, OPENAI_API_KEY
+# Required: OPENAI_API_KEY
+# Optional: LANGCHAIN_TRACING_V2, LANGCHAIN_API_KEY for LangSmith tracing
 ```
 
 ### Running the Application
@@ -90,6 +107,21 @@ black src/ app/ tests/
 
 # Type checking
 mypy src/ app/
+
+# Install development tools
+pip install -r requirements-dev.txt
+```
+
+### Progress Tracking
+
+This project uses PROGRESS.md to track implementation progress across all phases. Always update PROGRESS.md after completing a step:
+
+```bash
+# View current progress
+cat PROGRESS.md
+
+# After completing a step, mark it complete in PROGRESS.md
+# Change [⬜] to [✅] and update the session log
 ```
 
 ## Code Architecture Patterns
@@ -145,15 +177,21 @@ All settings use Pydantic for validation in `src/config/settings.py`:
 
 ```python
 class Settings(BaseSettings):
-    anthropic_api_key: str
     openai_api_key: str
+    langchain_tracing_v2: bool = False
+    langchain_api_key: str | None = None
+    chroma_persist_directory: str = "./data/vector_db"
     chunk_size: int = 1000
     chunk_overlap: int = 200
     top_k_results: int = 4
+    max_file_size_mb: int = 10
+    llm_model: str = "gpt-4o"
+    embedding_model: str = "text-embedding-3-small"
+    temperature: float = 0.0
     # ... other settings
 ```
 
-Load from environment variables using python-dotenv.
+Load from environment variables using python-dotenv. All environment variables are defined in `.env.example`.
 
 ## Data Flow for Queries
 
@@ -215,14 +253,17 @@ Load from environment variables using python-dotenv.
 
 ## Development Phases
 
-The project follows a 4-phase implementation plan:
+The project follows a 5-phase implementation plan (see PROGRESS.md for detailed tracking):
 
-1. **Phase 1 (Weeks 1-2)**: Basic RAG system with PDF upload and Q&A
-2. **Phase 2 (Weeks 3-4)**: Multi-document support with smart routing
-3. **Phase 3 (Weeks 5-6)**: Agentic capabilities with custom tools
-4. **Phase 4 (Weeks 7-8)**: Production polish (memory, streaming, export)
+1. **Phase 0**: Project setup, configuration, directory structure, dependencies
+2. **Phase 1**: Basic RAG system with PDF upload and Q&A
+3. **Phase 2**: Multi-document support with smart routing
+4. **Phase 3**: Agentic capabilities with custom tools
+5. **Phase 4**: Production polish (memory, streaming, export)
 
-When implementing features, follow the phase structure outlined in the original planning document.
+**Current Status**: Check PROGRESS.md for the latest implementation status and next steps.
+
+When implementing features, follow the phase structure and update PROGRESS.md after completing each step.
 
 ## Evaluation & Testing
 
@@ -254,17 +295,54 @@ Use Jupyter notebooks in `notebooks/` for experiments:
 
 ## File Organization
 
-- Source code in `src/` using modular design
-- Chainlit app entry point in `app/chainlit_app.py`
-- Tests mirror source structure in `tests/`
-- Data directories in `data/` (gitignored except README)
-- Notebooks for experiments in `notebooks/`
+```
+EduDicAI/
+├── src/                          # Source code (modular design)
+│   ├── config/                   # Settings and configuration (Pydantic)
+│   ├── document_processing/      # Loaders, splitters, metadata extraction
+│   ├── retrieval/                # Vector store, embeddings, retrieval strategies
+│   ├── agents/                   # Custom tools, agent config, prompts
+│   ├── chains/                   # Q&A chain, routing chain, summary chain (LCEL)
+│   ├── memory/                   # Conversation memory management
+│   └── utils/                    # Logging, validators, helpers
+├── app/                          # Application layer
+│   └── chainlit_app.py          # Chainlit UI entry point
+├── tests/                        # Tests mirror source structure
+├── data/                         # Data persistence (gitignored)
+│   ├── uploaded/                 # User-uploaded documents
+│   ├── processed/                # Processed/chunked documents
+│   └── vector_db/                # ChromaDB persistence directory
+├── notebooks/                    # Jupyter notebooks for experiments
+├── requirements.txt              # Production dependencies
+├── requirements-dev.txt          # Development dependencies (pytest, black, ruff, mypy)
+├── .env.example                  # Environment variable template
+├── PROGRESS.md                   # Implementation progress tracker
+└── CLAUDE.md                     # This file
+```
+
+## Project State & Implementation Notes
+
+**Current Development Phase**: The project is currently in **Phase 0 (Setup)**. Most source files contain only `__init__.py` stubs. When implementing functionality:
+
+1. **Always check PROGRESS.md first** to understand current phase and next steps
+2. **Follow the incremental approach**: Implement features according to phase order
+3. **Update PROGRESS.md** after completing each step (change [⬜] to [✅])
+4. **Create implementation files** as needed (most modules are empty stubs currently)
+
+### Windows-Specific Notes
+
+This project is developed on Windows:
+- Use `venv\Scripts\activate` (not `source venv/bin/activate`)
+- Path separators in code should use `pathlib.Path` for cross-platform compatibility
+- ChromaDB persists to `./data/vector_db` (uses forward slashes internally)
 
 ## Additional Notes
 
 This is a portfolio project designed to demonstrate LLM engineering skills. Focus on:
 - Clean, well-documented code
-- Proper use of LangChain patterns
+- Proper use of LangChain patterns (especially LCEL)
 - Demonstrating RAG and agentic reasoning
 - Production-quality architecture
 - Educational use case that solves real problems
+
+When implementing new features, prioritize simplicity and clarity over premature optimization.
