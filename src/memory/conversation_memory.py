@@ -7,7 +7,8 @@ to maintain conversation history and context.
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from langchain.memory import ConversationBufferMemory, ConversationSummaryMemory
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 
 from src.config.settings import settings
@@ -37,23 +38,8 @@ class SessionMemoryManager:
         self.max_token_limit = max_token_limit
         self.created_at = datetime.now()
 
-        # Initialize appropriate memory type
-        if memory_type == "summary":
-            llm = ChatOpenAI(
-                model=settings.llm_model,
-                temperature=0.0,
-                api_key=settings.openai_api_key,
-            )
-            self.memory = ConversationSummaryMemory(
-                llm=llm,
-                max_token_limit=max_token_limit,
-                return_messages=True,
-            )
-        else:  # buffer
-            self.memory = ConversationBufferMemory(
-                max_token_limit=max_token_limit,
-                return_messages=True,
-            )
+        # Initialize chat message history
+        self.chat_history = ChatMessageHistory()
 
         logger.info(
             f"Initialized {memory_type} memory for session {session_id}, "
@@ -66,7 +52,7 @@ class SessionMemoryManager:
         Args:
             message: User's message content
         """
-        self.memory.chat_memory.add_user_message(message)
+        self.chat_history.add_message(HumanMessage(content=message))
         logger.debug(f"Added user message to session {self.session_id}")
 
     def add_ai_message(self, message: str) -> None:
@@ -75,7 +61,7 @@ class SessionMemoryManager:
         Args:
             message: AI's response content
         """
-        self.memory.chat_memory.add_ai_message(message)
+        self.chat_history.add_message(AIMessage(content=message))
         logger.debug(f"Added AI message to session {self.session_id}")
 
     def add_exchange(self, user_message: str, ai_message: str) -> None:
@@ -94,16 +80,13 @@ class SessionMemoryManager:
         Returns:
             List of message dictionaries with 'role' and 'content'
         """
-        messages = self.memory.chat_memory.messages
+        messages = self.chat_history.messages
         history = []
         for msg in messages:
-            if hasattr(msg, 'type'):
-                role = 'user' if msg.type == 'human' else 'assistant'
-            else:
-                role = 'assistant'
+            role = 'user' if isinstance(msg, HumanMessage) else 'assistant'
             history.append({
                 'role': role,
-                'content': msg.content if hasattr(msg, 'content') else str(msg)
+                'content': msg.content
             })
         return history
 
@@ -122,7 +105,7 @@ class SessionMemoryManager:
 
     def clear(self) -> None:
         """Clear conversation memory."""
-        self.memory.clear()
+        self.chat_history.clear()
         logger.info(f"Cleared memory for session {self.session_id}")
 
     def get_message_count(self) -> int:
@@ -131,7 +114,7 @@ class SessionMemoryManager:
         Returns:
             Number of messages
         """
-        return len(self.memory.chat_memory.messages)
+        return len(self.chat_history.messages)
 
     def get_stats(self) -> Dict[str, any]:
         """Get memory statistics.
