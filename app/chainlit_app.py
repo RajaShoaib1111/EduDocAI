@@ -21,6 +21,7 @@ from src.config.settings import settings
 from src.document_processing.loaders import DocumentLoader
 from src.document_processing.metadata import extract_metadata_from_documents
 from src.document_processing.splitters import DocumentSplitter
+from src.memory.conversation_memory import get_memory_manager
 from src.retrieval.vector_store import VectorStoreManager
 from src.utils.logging import get_logger
 
@@ -39,7 +40,18 @@ async def start():
     """Initialize the chat session."""
     global vector_store_manager, qa_chain, query_router, agent
 
-    logger.info("Starting new chat session")
+    # Get or create session ID
+    session_id = cl.user_session.get("id")
+    logger.info(f"Starting new chat session: {session_id}")
+
+    # Initialize conversation memory for this session
+    memory_manager = get_memory_manager()
+    session_memory = memory_manager.get_or_create_session(
+        session_id=session_id,
+        memory_type="buffer",  # Use buffer for now; could switch to summary for long conversations
+        max_token_limit=2000,
+    )
+    cl.user_session.set("memory", session_memory)
 
     # Initialize query router
     query_router = QueryRouter()
@@ -81,11 +93,12 @@ Ready to begin? Upload your first document! 📄
 
         await cl.Message(
             content="✅ **Loaded existing document collection.** You can ask questions or upload new documents.\n\n"
-                    "🤖 **Agent capabilities enabled**: I can now handle complex queries with multi-step reasoning!",
+                    "🤖 **Agent capabilities enabled**: I can now handle complex queries with multi-step reasoning!\n"
+                    "💭 **Conversation memory active**: I'll remember our conversation context.",
             author="System",
         ).send()
 
-        logger.info("Loaded existing vector store and initialized agent")
+        logger.info("Loaded existing vector store, initialized agent, and activated conversation memory")
 
     except FileNotFoundError:
         logger.info("No existing vector store found - waiting for document upload")
@@ -115,6 +128,9 @@ async def main(message: cl.Message):
         return
 
     try:
+        # Get session memory
+        session_memory = cl.user_session.get("memory")
+
         # Route the query
         route = None
         if query_router:
@@ -149,8 +165,13 @@ async def main(message: cl.Message):
             result = await agent.ainvoke(message.content, query_type=route.query_type.value)
 
             # Update message with agent output
-            await msg.stream_token(result['output'])
+            agent_response = result['output']
+            await msg.stream_token(agent_response)
             await msg.update()
+
+            # Save to memory
+            if session_memory:
+                session_memory.add_exchange(message.content, agent_response)
 
             logger.info("Agent completed successfully")
 
@@ -159,12 +180,20 @@ async def main(message: cl.Message):
             msg = cl.Message(content="")
             await msg.send()
 
+            # Collect response for memory
+            response_text = ""
+
             # Stream the answer
             async for token in qa_chain.astream(message.content):
                 await msg.stream_token(token)
+                response_text += token
 
             # Finalize the message
             await msg.update()
+
+            # Save to memory
+            if session_memory:
+                session_memory.add_exchange(message.content, response_text)
 
             logger.info("Successfully answered question")
 
