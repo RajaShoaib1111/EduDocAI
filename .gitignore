@@ -40,9 +40,12 @@ env.bak/
 data/uploaded/*
 data/processed/*
 data/vector_db/*
+data/exports/*
 !data/uploaded/.gitkeep
 !data/processed/.gitkeep
 !data/vector_db/.gitkeep
+!data/exports/.gitkeep
+!data/uploaded/sample_timetable.txt
 
 # Chainlit
 .chainlit/
