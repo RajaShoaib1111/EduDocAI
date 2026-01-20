@@ -17,7 +17,17 @@
       "Bash(venvScriptspython test_phase1.py)",
       "Bash(venv/Scripts/chainlit:*)",
       "Bash(with Raja Shoaib in Room 101.\" ✅\n\nQ2: \"Who teaches Level-III A?\"\nA: Listed all 4 teachers with correct subject assignments ✅\n\nQ3: \"How many students does Raja Shoaib advise?\"\nA: \"Raja Shoaib advises 15 students.\" ✅\n\nPerformance:\n- Total test time: ~21 seconds\n- Embedding generation: ~5s\n- Question answering: 1-4s per question\n\nStatus: Phase 1 PRODUCTION READY ✅\n\nNote: User should revoke exposed API key and generate new one.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(venvScriptspython.exe test_phase2.py)",
+      "Bash(python test_phase2.py:*)",
+      "Bash(del nul)",
+      "Bash(where:*)",
+      "Bash(\"venv/Scripts/python.exe\" test_phase2.py)",
+      "Bash(\"venv/Scripts/chainlit.exe\" run app/chainlit_app.py)",
+      "Bash(\"venv/Scripts/python.exe\" test_phase3.py)",
+      "Bash(\"venv/Scripts/python.exe\" -c \"from langchain_core.agents import AgentExecutor; print\\(''Found in langchain_core''\\)\")",
+      "Bash(\"venv/Scripts/python.exe\":*)",
+      "Bash(\"venv/Scripts/python.exe\" -c \"from langg graph.prebuilt import create_react_agent; print\\(''Found create_react_agent''\\)\")"
     ]
   }
 }

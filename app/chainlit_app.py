@@ -14,6 +14,7 @@ sys.path.insert(0, str(project_root))
 
 import chainlit as cl
 
+from src.agents.agent import EducationalDocumentAgent
 from src.chains.qa_chain import QAChain
 from src.chains.routing_chain import QueryRouter, QueryType
 from src.config.settings import settings
@@ -30,12 +31,13 @@ logger = get_logger(__name__)
 vector_store_manager: Optional[VectorStoreManager] = None
 qa_chain: Optional[QAChain] = None
 query_router: Optional[QueryRouter] = None
+agent: Optional[EducationalDocumentAgent] = None
 
 
 @cl.on_chat_start
 async def start():
     """Initialize the chat session."""
-    global vector_store_manager, qa_chain, query_router
+    global vector_store_manager, qa_chain, query_router, agent
 
     logger.info("Starting new chat session")
 
@@ -74,12 +76,16 @@ Ready to begin? Upload your first document! 📄
         vector_store_manager.load_vector_store()
         qa_chain = QAChain(vector_store_manager)
 
+        # Initialize agent with loaded vector store
+        agent = EducationalDocumentAgent(vector_store_manager, verbose=False)
+
         await cl.Message(
-            content="✅ **Loaded existing document collection.** You can ask questions or upload new documents.",
+            content="✅ **Loaded existing document collection.** You can ask questions or upload new documents.\n\n"
+                    "🤖 **Agent capabilities enabled**: I can now handle complex queries with multi-step reasoning!",
             author="System",
         ).send()
 
-        logger.info("Loaded existing vector store")
+        logger.info("Loaded existing vector store and initialized agent")
 
     except FileNotFoundError:
         logger.info("No existing vector store found - waiting for document upload")
@@ -92,7 +98,7 @@ Ready to begin? Upload your first document! 📄
 @cl.on_message
 async def main(message: cl.Message):
     """Handle incoming user messages."""
-    global qa_chain, vector_store_manager, query_router
+    global qa_chain, vector_store_manager, query_router, agent
 
     logger.info(f"Received message: {message.content[:50]}...")
 
@@ -110,6 +116,7 @@ async def main(message: cl.Message):
 
     try:
         # Route the query
+        route = None
         if query_router:
             route = query_router.route_query(message.content)
             logger.info(
@@ -126,28 +133,40 @@ async def main(message: cl.Message):
                     author="System",
                 ).send()
 
-            # Handle different query types
-            if route.query_type == QueryType.COMPLEX:
-                # For now, show a message that complex queries need agents (Phase 3)
-                await cl.Message(
-                    content="🤖 This query requires complex reasoning with agents, "
-                            "which will be available in Phase 3. "
-                            "For now, I'll try to answer using basic retrieval.",
-                    author="System",
-                ).send()
+        # Handle different query types
+        if route and route.query_type == QueryType.COMPLEX and agent:
+            # Use agent for complex queries
+            await cl.Message(
+                content="🤖 **Using agent for complex reasoning...**",
+                author="System",
+            ).send()
 
-        # Create a message placeholder for streaming
-        msg = cl.Message(content="")
-        await msg.send()
+            # Create a message placeholder
+            msg = cl.Message(content="")
+            await msg.send()
 
-        # Stream the answer (metadata filtering will be added in future enhancement)
-        async for token in qa_chain.astream(message.content):
-            await msg.stream_token(token)
+            # Run agent (note: full streaming not yet implemented for agent)
+            result = await agent.ainvoke(message.content, query_type=route.query_type.value)
 
-        # Finalize the message
-        await msg.update()
+            # Update message with agent output
+            await msg.stream_token(result['output'])
+            await msg.update()
 
-        logger.info("Successfully answered question")
+            logger.info("Agent completed successfully")
+
+        else:
+            # Use basic RAG chain for simple queries
+            msg = cl.Message(content="")
+            await msg.send()
+
+            # Stream the answer
+            async for token in qa_chain.astream(message.content):
+                await msg.stream_token(token)
+
+            # Finalize the message
+            await msg.update()
+
+            logger.info("Successfully answered question")
 
     except Exception as e:
         logger.error(f"Error processing question: {e}")
@@ -242,8 +261,9 @@ async def handle_file_upload(files: list):
             vector_store_manager.add_documents(all_chunks)
             logger.info("Added documents to existing vector store")
 
-        # Create/update QA chain
+        # Create/update QA chain and agent
         qa_chain = QAChain(vector_store_manager)
+        agent = EducationalDocumentAgent(vector_store_manager, verbose=False)
 
         # Success message
         file_names = ", ".join([f.name for f in files])
