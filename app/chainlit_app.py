@@ -180,18 +180,34 @@ async def handle_file_upload(files: list):
             # Save file to upload directory
             file_path = upload_dir / file.name
 
-            # Read file content based on type
-            if hasattr(file, 'content'):
-                content = file.content
-            elif hasattr(file, 'path'):
-                with open(file.path, 'rb') as f:
-                    content = f.read()
-            else:
-                logger.error(f"Unknown file type: {type(file)}")
-                continue
+            # Read file content based on Chainlit file object attributes
+            try:
+                # Try to get content from path (most common)
+                if hasattr(file, 'path') and file.path:
+                    with open(file.path, 'rb') as f:
+                        content = f.read()
+                # Fallback to content attribute
+                elif hasattr(file, 'content') and file.content is not None:
+                    content = file.content
+                else:
+                    logger.error(f"Cannot read file: {file.name} - no valid path or content")
+                    await cl.Message(
+                        content=f"⚠️ Cannot read file: {file.name}. Please try again.",
+                        author="System",
+                    ).send()
+                    continue
 
-            with open(file_path, "wb") as f:
-                f.write(content)
+                # Write to upload directory
+                with open(file_path, "wb") as f:
+                    f.write(content)
+
+            except Exception as e:
+                logger.error(f"Error reading file {file.name}: {e}")
+                await cl.Message(
+                    content=f"⚠️ Error reading file: {file.name}. Error: {str(e)}",
+                    author="System",
+                ).send()
+                continue
 
             logger.info(f"Processing file: {file.name}")
 
